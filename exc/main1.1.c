@@ -1,17 +1,27 @@
-#include "include/glad/glad.h"
-#include "shader.h"
+#include "../include/glad/glad.h"
 #include <GL/gl.h>
-#include <GL/glext.h>
 #include <GLFW/glfw3.h>
-#include <math.h>
 #include <stdio.h>
 
-const char *vertexShaderSource = "./vertex.vert";
-const char *fragmentShaderSource = "./fragment.frag";
+const char *vertexShaderSource =
+    "#version 460 core\n"
+    "layout (location = 0) in vec3 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "}\0";
 
-float triangleVert[] = {-0.5f, -0.5f, 0.0f,  0.0f, 0.5f,
-                        0.0f,  0.5f,  -0.5f, 0.0f};
-unsigned int triagIndices[] = {0, 1, 2};
+const char *fragmentShaderSource = "#version 460 core\n"
+                                   "out vec4 FragColor;\n"
+                                   "void main()\n"
+                                   "{\n"
+                                   "FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+                                   "}\0";
+
+float triangleVert[] = {-1.0f, -0.5f, 0.0f, -0.5f, 0.5f,  0.0f,
+                        0.0f,  -0.5f, 0.0f, 0.0f,  -0.5,  0.0f,
+                        0.5f,  0.5f,  0.0f, 1.0f,  -0.5f, 0.0f};
+unsigned int triagIndices[] = {0, 1, 2, 3, 4, 5};
 
 float rectVert[] = {
     0.5f,  0.5f,  0.0f, // top right
@@ -26,8 +36,6 @@ unsigned int rectIndices[] = {
 
 void framebuffer_size_callback(GLFWwindow *, int, int);
 void processInput(GLFWwindow *);
-unsigned int shaderCompile(const char *shaderSource, int TYPE);
-void shaderLog(unsigned int shaderObject, int TYPE);
 
 int main() {
   // Window options.
@@ -59,11 +67,17 @@ int main() {
 
   // VBO
   // Has all the vertex data
-  unsigned int VBO;
-  glGenBuffers(1, &VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO); // Bind to the VBO
+  unsigned int VBO1;
+  glGenBuffers(1, &VBO1);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO1); // Bind to the VBO
   /* glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVert), triangleVert, */
   /*              GL_STATIC_DRAW); // Give it data. */
+  glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVert), triangleVert,
+               GL_STATIC_DRAW);
+
+  unsigned int VBO2;
+  glGenBuffers(1, &VBO2);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO2);
   glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVert), triangleVert,
                GL_STATIC_DRAW);
 
@@ -74,13 +88,49 @@ int main() {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triagIndices), triagIndices,
                GL_STATIC_DRAW);
 
-  Shader shader = shaderDef(vertexShaderSource, fragmentShaderSource);
+  // Vertex Shader
+  unsigned int vertexShader;
+  vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+  glCompileShader(vertexShader); // Compilation
+  int success;
+  char infoLog[512];
+  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+    printf("VERTEX SHADER COMPILE ERROR\n%s\n", infoLog);
+  }
+
+  // Fragment Shader
+  unsigned int fragmentShader;
+  fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+  glCompileShader(fragmentShader);
+  glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+    printf("FRAGMENT SHADER COMPILE ERROR\n%s\n", infoLog);
+  }
+
+  // Shader Program
+  unsigned int shaderProgram;
+  shaderProgram = glCreateProgram();
+  glAttachShader(shaderProgram, vertexShader);
+  glAttachShader(shaderProgram, fragmentShader);
+  glLinkProgram(shaderProgram);
+  glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+  if (!success) {
+    glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+    printf("LINKING ERROR\n%s\n", infoLog);
+  }
 
   // Vertex Attributes
   // bascically tells opengl how the vertices should be interpretted by OpenGL.
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0); // These automatically go to VAO
 
+  glDeleteShader(vertexShader);
+  glDeleteShader(fragmentShader);
   // From what I understand you don't need to attach to the VBOs and VAOs
   // explicitly. OpenGL does that for you automatically in the background, once
   // you attach an object to a specific type.
@@ -93,9 +143,8 @@ int main() {
     // render
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    float timeValue = glfwGetTime();
-    float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
-    useShader(shader); // Use the shaders.
+
+    glUseProgram(shaderProgram); // Use the shaders.
     glBindVertexArray(VAO);
     // So ideally, everytime you draw you would bind to the VAO you need and
     // then unbind after drawing. So here is the redundant code for that case.
@@ -120,24 +169,5 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     glfwSetWindowShouldClose(window, 1);
-  }
-}
-
-unsigned int shaderCompile(const char *shaderSource, int TYPE) {
-  unsigned int shader;
-  shader = glCreateShader(TYPE);
-  glShaderSource(shader, 1, &shaderSource, NULL);
-  glCompileShader(shader); // Compilation
-  shaderLog(shader, GL_COMPILE_STATUS);
-  return shader;
-}
-
-void shaderLog(unsigned int shader, int TYPE) {
-  int success;
-  char infoLog[512];
-  glGetShaderiv(shader, TYPE, &success);
-  if (!success) {
-    glGetShaderInfoLog(shader, 512, NULL, infoLog);
-    printf("SHADER ERROR\n%s\n", infoLog);
   }
 }
