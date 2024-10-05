@@ -1,7 +1,7 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include "include/glad/glad.h"
+// #include "glad.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@
 #define true 1
 
 typedef struct Shader {
-  unsigned int ID; // Program ID.
+  int ID; // Program ID.
 } Shader;
 Shader shaderDef(const char *vertexPath, const char *fragmentPath);
 void useShader(Shader shader);

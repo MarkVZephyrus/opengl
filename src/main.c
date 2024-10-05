@@ -1,13 +1,17 @@
-#include "include/glad/glad.h"
-#include "shader.h"
+#include "headers/glad.h"
+#include "headers/shader.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <GLFW/glfw3.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-const char *vertexShaderSource = "./vertex.vert";
-const char *fragmentShaderSource = "./fragment.frag";
+// Of Course the simple things get fucked up
+// Under current directory strctor you can either have these paths relative to
+// the lib file where the go or use realpath()
+#define VERTEX_SOURCE_PATH "shaders/vertex.vert"
+#define FRAGMENT_SOURCE_PATH "shaders/fragment.frag"
 
 float triangleVert[] = {-0.5f, -0.5f, 0.0f,  0.0f, 0.5f,
                         0.0f,  0.5f,  -0.5f, 0.0f};
@@ -74,7 +78,7 @@ int main() {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triagIndices), triagIndices,
                GL_STATIC_DRAW);
 
-  Shader shader = shaderDef(vertexShaderSource, fragmentShaderSource);
+  Shader shader = shaderDef(VERTEX_SOURCE_PATH, FRAGMENT_SOURCE_PATH);
 
   // Vertex Attributes
   // bascically tells opengl how the vertices should be interpretted by OpenGL.
@@ -95,7 +99,9 @@ int main() {
     glClear(GL_COLOR_BUFFER_BIT);
     float timeValue = glfwGetTime();
     float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
+    int vertexColorLocation = glGetUniformLocation(shader.ID, "ourColor");
     useShader(shader); // Use the shaders.
+    glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
     glBindVertexArray(VAO);
     // So ideally, everytime you draw you would bind to the VAO you need and
     // then unbind after drawing. So here is the redundant code for that case.

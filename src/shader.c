@@ -1,22 +1,38 @@
-#include "shader.h"
+#include "headers/shader.h"
 #include <stdio.h>
-
-char *vertexCode, *fragmentCode;
+#include <stdlib.h>
+#define FILESIZE 1000
+char *vertexCode;
+char *fragmentCode;
 FILE *vShaderFile, *fShaderFile;
 
 Shader shaderDef(const char *vertexPath, const char *fragmentPath) {
   Shader shader;
 
-  vShaderFile = fopen(vertexPath, "r");
-  fShaderFile = fopen(fragmentPath, "r");
+  puts(vertexPath);
+  vShaderFile = fopen(vertexPath, "rb");
+  fShaderFile = fopen(fragmentPath, "rb");
 
   if (vShaderFile == NULL || fShaderFile == NULL) {
-    printf("ERROR::SHADER::FAILED_TO_OPEN_FILE(S)");
+    puts("ERROR::SHADER::FAILED_TO_OPEN_FILE(S)");
     exit(1);
   }
 
-  fscanf(vShaderFile, "%c", vertexCode);
-  fscanf(fShaderFile, "%c", fragmentCode);
+  // File Read bloc
+  long file_length = 0;
+  fseek(vShaderFile, 0L, SEEK_END);
+  file_length = ftell(vShaderFile);
+  rewind(vShaderFile);
+  vertexCode = malloc(file_length * sizeof(char) + 1);
+  fread(vertexCode, sizeof(char), file_length, vShaderFile);
+  vertexCode[file_length] = '\0';
+
+  fseek(fShaderFile, 0L, SEEK_END);
+  file_length = ftell(fShaderFile);
+  rewind(fShaderFile);
+  fragmentCode = malloc(file_length * sizeof(char) + 1);
+  fread(fragmentCode, sizeof(char), file_length, fShaderFile);
+  fragmentCode[file_length] = '\0';
 
   fclose(vShaderFile);
   fclose(fShaderFile);
@@ -24,15 +40,16 @@ Shader shaderDef(const char *vertexPath, const char *fragmentPath) {
   const char *vShaderCode = vertexCode;
   const char *fShaderCode = fragmentCode;
 
+  /* free(vertexCode); */
+  /* free(fragmentCode); */
+
   // compilation
 
-  unsigned int vertex, fragment;
   int success;
   char infoLog[512];
 
   // vertex Shader
-  vertex = glCreateShader(GL_VERTEX_SHADER);
-  printf(vertexCode, "\n", fragmentCode, "\n");
+  GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(vertex, 1, &vShaderCode, NULL);
   glCompileShader(vertex);
 
@@ -43,7 +60,7 @@ Shader shaderDef(const char *vertexPath, const char *fragmentPath) {
   }
 
   // fragment Shader
-  fragment = glCreateShader(GL_FRAGMENT_SHADER);
+  GLuint fragment = glCreateShader(GL_FRAGMENT_SHADER);
   glShaderSource(fragment, 1, &fShaderCode, NULL);
   glCompileShader(fragment);
 
