@@ -4,10 +4,13 @@ COMPILE="src/main.c src/glad.c src/shader.c"
 FLAGS="-lglfw -lGL -lX11 -lpthread -lXrandr -ldl -lm"
 
 DATESTAMP="$(date +"%Y.%m.%d-%H%M%S")"
-EXC="exc/opengl_"$DATESTAMP
+EXC="opengl_$DATESTAMP.exc"
+echo $EXC
 HIST=2
 
-gcc $FLAGS -g $COMPILE -o $EXC
+if [[ $2 = "-b" ]]; then
+  gcc $FLAGS -g $COMPILE -o $EXC
+fi
 if [[ $1 = "-r" ]]; then
   echo "EXECUTING $EXC"
   ./$EXC
@@ -15,11 +18,12 @@ fi
 
 # Remove old exectables
 EXCNO=0
-for file in "exc"/*; do
+for file in *.exc; do
   let EXCNO++
 done
+
 IT=0
-for file in "exc"/*; do
+for file in *.exc; do
   if [[ $IT -ge $(($EXCNO - ($HIST + 1))) ]]; then
     break
   fi

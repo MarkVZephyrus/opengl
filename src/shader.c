@@ -9,7 +9,6 @@ FILE *vShaderFile, *fShaderFile;
 Shader shaderDef(const char *vertexPath, const char *fragmentPath) {
   Shader shader;
 
-  puts(vertexPath);
   vShaderFile = fopen(vertexPath, "rb");
   fShaderFile = fopen(fragmentPath, "rb");
 

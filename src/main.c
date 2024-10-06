@@ -7,14 +7,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define VIEWPORT_WIDTH 800
+#define VIEWPORT_HEIGHT 600
+
 // Of Course the simple things get fucked up
 // Under current directory strctor you can either have these paths relative to
 // the lib file where the go or use realpath()
 #define VERTEX_SOURCE_PATH "shaders/vertex.vert"
 #define FRAGMENT_SOURCE_PATH "shaders/fragment.frag"
 
-float triangleVert[] = {-0.5f, -0.5f, 0.0f,  0.0f, 0.5f,
-                        0.0f,  0.5f,  -0.5f, 0.0f};
+float triangleVert[] = {
+    // coord            // colors
+    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, // bl
+    0.0f,  0.5f,  0.0f, 0.0f, 0.0f, 0.0f, // t
+    0.5f,  -0.5f, 0.0f, 0.0f, 0.0f, 0.0f  // br
+};
 unsigned int triagIndices[] = {0, 1, 2};
 
 float rectVert[] = {
@@ -40,7 +47,8 @@ int main() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  GLFWwindow *window = glfwCreateWindow(800, 600, "OpenGL", NULL, NULL);
+  GLFWwindow *window =
+      glfwCreateWindow(VIEWPORT_WIDTH, VIEWPORT_HEIGHT, "OpenGL", NULL, NULL);
   if (window == NULL) {
     printf("Failed to create GLFW window.\n");
     glfwTerminate();
@@ -51,7 +59,7 @@ int main() {
     printf("Failed to initialize GLAD.\n");
     return -1;
   }
-  glViewport(0, 0, 800, 600);
+  glViewport(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   // Vertex Array Object
@@ -66,8 +74,6 @@ int main() {
   unsigned int VBO;
   glGenBuffers(1, &VBO);
   glBindBuffer(GL_ARRAY_BUFFER, VBO); // Bind to the VBO
-  /* glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVert), triangleVert, */
-  /*              GL_STATIC_DRAW); // Give it data. */
   glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVert), triangleVert,
                GL_STATIC_DRAW);
 
@@ -82,8 +88,13 @@ int main() {
 
   // Vertex Attributes
   // bascically tells opengl how the vertices should be interpretted by OpenGL.
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0); // These automatically go to VAO
+  // Color Attribute Array
+  glVertexAttribPointer(
+      1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+      (void *)(3 * sizeof(float))); // the last argument is the offset
+  glEnableVertexAttribArray(1);
 
   // From what I understand you don't need to attach to the VBOs and VAOs
   // explicitly. OpenGL does that for you automatically in the background, once
@@ -97,11 +108,12 @@ int main() {
     // render
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
     float timeValue = glfwGetTime();
-    float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
-    int vertexColorLocation = glGetUniformLocation(shader.ID, "ourColor");
+
     useShader(shader); // Use the shaders.
-    glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+    setFloat(shader, "offset", timeValue);
+
     glBindVertexArray(VAO);
     // So ideally, everytime you draw you would bind to the VAO you need and
     // then unbind after drawing. So here is the redundant code for that case.
