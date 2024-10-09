@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COMPILE="src/main.c src/glad.c src/shader.c"
+COMPILE="src/main.c src/glad.c src/shader.c src/stb_image.c"
 FLAGS="-lglfw -lGL -lX11 -lpthread -lXrandr -ldl -lm"
 
 DATESTAMP="$(date +"%Y.%m.%d-%H%M%S")"

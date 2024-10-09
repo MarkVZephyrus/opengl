@@ -1,9 +1,9 @@
 #include "headers/glad.h"
 #include "headers/shader.h"
+#include "headers/stb_image.h" // Shame on you, you little bitch
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <GLFW/glfw3.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -11,34 +11,15 @@
 #define VIEWPORT_HEIGHT 600
 
 // Of Course the simple things get fucked up
-// Under current directory strctor you can either have these paths relative to
+// Under current directory structre you can either have these paths relative to
 // the lib file where the go or use realpath()
+// SOLUTION: Changed the file structre.
 #define VERTEX_SOURCE_PATH "shaders/vertex.vert"
 #define FRAGMENT_SOURCE_PATH "shaders/fragment.frag"
-
-float triangleVert[] = {
-    // coord            // colors
-    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, // bl
-    0.0f,  0.5f,  0.0f, 0.0f, 0.0f, 0.0f, // t
-    0.5f,  -0.5f, 0.0f, 0.0f, 0.0f, 0.0f  // br
-};
-unsigned int triagIndices[] = {0, 1, 2};
-
-float rectVert[] = {
-    0.5f,  0.5f,  0.0f, // top right
-    0.5f,  -0.5f, 0.0f, // bottom right
-    -0.5f, -0.5f, 0.0f, // bottom left
-    -0.5f, 0.5f,  0.0f  // top left
-};
-unsigned int rectIndices[] = {
-    0, 1, 3, // triag 1
-    1, 2, 3  // triag 2
-};
+#define TEXTURE_SOURCE_PATH "objects/textures/grunge-wall.jpg"
 
 void framebuffer_size_callback(GLFWwindow *, int, int);
 void processInput(GLFWwindow *);
-unsigned int shaderCompile(const char *shaderSource, int TYPE);
-void shaderLog(unsigned int shaderObject, int TYPE);
 
 int main() {
   // Window options.
@@ -62,6 +43,18 @@ int main() {
   glViewport(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+  float rectVert[] = {
+      // Vertex           // Colors         // Texture CoOrds
+      0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
+      0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
+      -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
+      -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f  // top left
+  };
+  unsigned int rectIndices[] = {
+      0, 1, 3, // triag 1
+      1, 2, 3  // triag 2
+  };
+
   // Vertex Array Object
   // From what I understand, this object stores Vertex Attribute configurations
   // and uses them to access data from VBO.
@@ -74,27 +67,56 @@ int main() {
   unsigned int VBO;
   glGenBuffers(1, &VBO);
   glBindBuffer(GL_ARRAY_BUFFER, VBO); // Bind to the VBO
-  glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVert), triangleVert,
-               GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(rectVert), rectVert, GL_STATIC_DRAW);
 
   // EBO
   unsigned int EBO;
   glGenBuffers(1, &EBO);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triagIndices), triagIndices,
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(rectIndices), rectIndices,
                GL_STATIC_DRAW);
 
+  // SHADER
   Shader shader = shaderDef(VERTEX_SOURCE_PATH, FRAGMENT_SOURCE_PATH);
+
+  // TEXTURE
+  unsigned int texture;
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  // texture options
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  // (s, t, r) = (x, y, z)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // load and gen the texture
+  int width, height, nrChannels;
+  unsigned char *data =
+      stbi_load(TEXTURE_SOURCE_PATH, &width, &height, &nrChannels, 0);
+  if (data) {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                 GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+  } else
+    puts("ERR::TEXTURE_FAILED_TO_BE_LOADED");
+  stbi_image_free(data);
 
   // Vertex Attributes
   // bascically tells opengl how the vertices should be interpretted by OpenGL.
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  // 3 * float = vertex | 3 * float = color | 2 * float = 2d texture
+  // Total 8 * float for each vertex.
+  // Vertex Coorinate Data
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0); // These automatically go to VAO
   // Color Attribute Array
-  glVertexAttribPointer(
-      1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
-      (void *)(3 * sizeof(float))); // the last argument is the offset
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
+  // Texture Attribute Array
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(6 * sizeof(float)));
+  glEnableVertexAttribArray(2);
 
   // From what I understand you don't need to attach to the VBOs and VAOs
   // explicitly. OpenGL does that for you automatically in the background, once
@@ -110,6 +132,8 @@ int main() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     float timeValue = glfwGetTime();
+
+    glBindTexture(GL_TEXTURE_2D, texture);
 
     useShader(shader); // Use the shaders.
     setFloat(shader, "offset", timeValue);
@@ -128,6 +152,10 @@ int main() {
     glfwPollEvents();
   }
 
+  glDeleteVertexArrays(1, &VAO);
+  glDeleteBuffers(1, &VBO);
+  glDeleteBuffers(1, &EBO);
+
   glfwTerminate();
   return 0;
 }
@@ -138,24 +166,5 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     glfwSetWindowShouldClose(window, 1);
-  }
-}
-
-unsigned int shaderCompile(const char *shaderSource, int TYPE) {
-  unsigned int shader;
-  shader = glCreateShader(TYPE);
-  glShaderSource(shader, 1, &shaderSource, NULL);
-  glCompileShader(shader); // Compilation
-  shaderLog(shader, GL_COMPILE_STATUS);
-  return shader;
-}
-
-void shaderLog(unsigned int shader, int TYPE) {
-  int success;
-  char infoLog[512];
-  glGetShaderiv(shader, TYPE, &success);
-  if (!success) {
-    glGetShaderInfoLog(shader, 512, NULL, infoLog);
-    printf("SHADER ERROR\n%s\n", infoLog);
   }
 }
